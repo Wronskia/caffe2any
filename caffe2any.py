@@ -25,6 +25,7 @@ from printers import csv, console
 from caffe_parser import parse_caffe_net
 from transforms import reduce_transforms
 import topology
+import copy
 import yaml
 
 DEBUG = False
@@ -55,17 +56,17 @@ def apply_transforms(prefs, tplgy):
         fold_transforms.fold_pair(tplgy, 'Convolution', 'BatchNorm')
     if prefs['fold_scale']:
         fold_transforms.fold_pair(tplgy, 'Convolution', 'Scale')
+
     if prefs['merge_conv_relu']:
-        tplgy.merge_nodes('Convolution', 'ReLU')
+        tplgy.merge_nodes('Convolution', 'ReLU', 'Convolution_ReLU')
+
     if prefs['merge_ip_relu']:
-        tplgy.merge_nodes('InnerProduct', 'ReLU')
-    if prefs['merge_sum_relu']:
-        tplgy.merge_nodes('Eltwise', 'ReLU')
+        tplgy.merge_nodes('InnerProduct', 'ReLU', 'InnerProduct_ReLU')
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--printer', help='output printer (csv, console, png)', default='console')
-    parser.add_argument('-d', '--display', type=str, help='display inventory,unique,output,bfs,mem')
+    parser.add_argument('-p', '--printer', help='output printer (csv, console, png)', default='csv')
+    parser.add_argument('-d', '--display', type=str, help='display inventory,unique,output,bfs,mem', default='inventory,unique,output,bfs,mem')
     parser.add_argument('infile', help='input prototxt file')
     args = parser.parse_args()
 
@@ -92,28 +93,34 @@ def main():
     # This is a temp bug-bypass
     if args.printer == 'png':
         if prefs['transforms']['merge_conv_relu_pooling']:
-            tplgy.merge_nodes('Convolution_ReLU', 'Pooling')
+            tplgy.merge_nodes('Convolution_ReLU', 'Pooling', 'Convolution_ReLU_Pooling')
+
     # tplgy.dump_edges()
     if args.printer == 'console':
         printer = console.ConsolePrinter()
     elif args.printer == 'png':
         printer = PngPrinter(args, prefs['png'], net)
     else:
-        printer = csv.CsvPrinter(args.infile + '.csv')
+        printer_inventory = csv.CsvPrinter(args.infile + '_inventory.csv')
+        printer_unique = csv.CsvPrinter(args.infile + '_unique.csv')
+        printer_bfs = csv.CsvPrinter(args.infile + '_bfs.csv')
 
     if args.display != None:
         for disp_opt in args.display.split(','):
             if disp_opt == 'inventory':
-                printer.print_inventory( reduce_transforms.get_inventory(tplgy) )
+                #printer.print_inventory( reduce_transforms.get_inventory(tplgy) )
+                printer_inventory.print_inventory( reduce_transforms.get_inventory(tplgy) )
             elif disp_opt == 'unique':
-                printer.print_unique_all( reduce_transforms.get_uniques_inventory(tplgy) )
+                #printer.print_unique_all( reduce_transforms.get_uniques_inventory(tplgy) )
+                printer_unique.print_unique_all( reduce_transforms.get_uniques_inventory(tplgy) )
             elif disp_opt == 'output':
                 print("outputs:")
                 outputs = tplgy.find_output_blobs()
                 for output in outputs:
                     print('\t' + output)
             elif disp_opt == 'bfs':
-                printer.print_bfs(tplgy)
+                #printer.print_bfs(tplgy)
+                printer_bfs.print_bfs(tplgy)
             elif disp_opt == 'mem':
                 sum = [0]
                 blobs = []
