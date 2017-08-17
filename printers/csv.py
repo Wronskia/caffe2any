@@ -180,7 +180,10 @@ class CsvPrinter:
     def write_to_file(self, col_handlers):
         for col in self.cols:
             if col_handlers[col]!='#':
-                self.file.write(col_handlers[col] + ',' )
+		if col == 'MACs':
+		    self.file.write(col_handlers[col])
+		else:
+                    self.file.write(col_handlers[col] + ',' )
         self.file.write('\n');
 
     def print_edge_cb(self, edge, tplgy):
