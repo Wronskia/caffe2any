@@ -1,4 +1,5 @@
 from .globals import *
+import json
 pooling_type = get_pooling_types_dict()
 
 class CsvPrinter:
@@ -6,6 +7,7 @@ class CsvPrinter:
 
     def __init__(self, fname):
         self.file = open(fname, "wt")
+	self.mnk_file=open("MNK.csv","wt")
         self.done_blobs = []
         # TODO - make this constants so they can be reused
         self.cols = ['Node', 'Type', 'Node Details', 'IFMz', 'IFMy', 'IFMx', 'OFMz', 'OFMy', 'OFMx',
@@ -158,50 +160,57 @@ class CsvPrinter:
         tplgy.traverse(None, lambda edge: self.print_edge_cb(edge, tplgy))
 	print('cvs printer: done with %s' % self.file.name)
 
-    def print_mnk(self, tplgy):
-        self.file.write('Layer_name,Filter_dim,Stride,Pad, Input_size\n')
+    def print_mnk(self, tplgy,config_json):
+        self.file.write('Layer_name,Filter_dim,Stride,Pad, Number_channels, Height, Width\n')
+	self.mnk_file.write('Name,M,N,K\n')
         columns=['Name','Dim','Stride','Pad', 'IFMz']
 	#self.file.write('\n')
-	tplgy.traverse(None, lambda edge: self.print_edge_cb_mnk(edge, tplgy,columns))
+	with open(config_json) as json_data:
+		config_json_param = json.load(json_data)
+	tplgy.traverse(None, lambda edge: self.print_edge_cb_mnk(edge, tplgy,columns,config_json_param))
 	print('cvs printer: done with %s' % self.file.name)
 
+    def calculate_mnk(self,convo_algo,col_handlers):
+	
+	height=int(col_handlers['IFMz'].split(",")[1])
+	width=int(col_handlers['IFMz'].split(",")[2])
+	stride =int(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[0].split("=")[1])
+	pad=int(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[1].split("=")[1])
+	filter_sizes = [int(col_handlers['Type'].split(",")[1].split("=")[1].split("/")[0].split("x")[1]),int(col_handlers['Type'].split(",")[1].split("=")[1].split("/")[0].split("x")[1])]
+	channels = int(col_handlers['IFMz'].split(",")[0])
+	if convo_algo=='GEMMS':
+		self.mnk_file.write(col_handlers['Node'].split(" ")[0]+',')
+		self.mnk_file.write(str((height+stride-1)/stride)+',')
+		self.mnk_file.write(str((width + stride -1)/stride)+',')
+		self.mnk_file.write(str(channels*filter_sizes[0]*filter_sizes[1]))
+		self.mnk_file.write('\n')
 
-    def print_edge_cb_mnk(self, edge, tplgy,columns):
-        # If we've printed the contribution of this BLOB, then we skip it.
-        # This will naturally filter out ReLU nodes, because they share their
-        # BLOB with either Convolution or InnerProduct
+    def print_edge_cb_mnk(self, edge, tplgy,columns,config_json_param):
         if edge.blob in self.done_blobs:
-            #print("skipping BLOB: %s from edge %s" % (edge.blob, str(edge)))
             return
-        # We don't want to see 'modifier' nodes (e.g. Concat) it in the CSV, since
-        # they contribute no data transfer information
         if edge.src_node.role == 'Modifier':
             return
         self.done_blobs.append(edge.blob)
-
         col_handlers = self.get_col_handlers_mnk(edge, tplgy)
-        """
-        Add your own handler
-        """
         new_col_handlers = col_handlers
-        if 'Conv' in new_col_handlers['Type']:
+	supported_layers=['Convolution','Convolution_ReLU']
+        #if 'Conv' in new_col_handlers['Type']:
+	if edge.src_node.type in supported_layers:
+		self.calculate_mnk(config_json_param[new_col_handlers['Node'].split(" ")[0]],new_col_handlers)
         	self.write_to_file_mnk(new_col_handlers,columns)
 
     def write_to_file_mnk(self, col_handlers,columns):
         for col in columns:
 		if col == 'Name':
-			self.file.write(col_handlers['Node'].split(" ")[0]+',' )
-			print(col_handlers['Node'].split(" ")[0])
+			self.file.write(col_handlers['Node'].split(" ")[0]+',')
 		elif col == 'Dim':
-			self.file.write(col_handlers['Type'].split(",")[1].split("=")[1].split("/")[0]+ ','  )
+			self.file.write(col_handlers['Type'].split(",")[1].split("=")[1].split("/")[0]+ ',')
 		elif col == 'Stride':
-			print(col_handlers['Type'].split(",")[1].split("/")[0])
-			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[0]+ ',' )
+			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[0].split("=")[1]+ ',' )
 		elif col == 'Pad':
-			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[1]+ ',' )
+			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[1].split("=")[1]+ ',' )
 		else:
-
-        		self.file.write(col_handlers[col] + ',' )
+        		self.file.write(col_handlers[col].split(",")[0] + ',' + col_handlers[col].split(",")[1] + ','+ col_handlers[col].split(",")[2] )
         self.file.write('\n');
 
     def get_col_handlers_mnk(self, edge, tplgy):

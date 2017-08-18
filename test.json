@@ -1,0 +1,8 @@
+{
+  "conv1": "GEMMS",
+  "conv2": "GEMMS",
+  "conv3": "GEMMS",
+  "conv4": "GEMMS",
+  "conv5": "GEMMS",
+
+}

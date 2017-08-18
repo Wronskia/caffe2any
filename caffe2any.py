@@ -68,6 +68,7 @@ def main():
     parser.add_argument('-p', '--printer', help='output printer (csv, console, png)', default='csv')
     parser.add_argument('-d', '--display', type=str, help='display inventory,unique,output,bfs,mem', default='inventory,unique,output,bfs,mem,mnk')
     parser.add_argument('infile', help='input prototxt file')
+    parser.add_argument('--config_json', help='json file containing algos for convolution layers',default='None')
     args = parser.parse_args()
 
     net = caffe.NetParameter()
@@ -105,6 +106,7 @@ def main():
         printer_unique = csv.CsvPrinter(args.infile + '_unique.csv')
         printer_bfs = csv.CsvPrinter(args.infile + '_bfs.csv')
 	printer_mnk = csv.CsvPrinter(args.infile + '_mnk.csv')
+	print(args.config_json)
 
     if args.display != None:
         for disp_opt in args.display.split(','):
@@ -123,7 +125,7 @@ def main():
                 #printer.print_bfs(tplgy)
                 printer_bfs.print_bfs(tplgy)
             elif disp_opt== 'mnk':
-		printer_mnk.print_mnk(tplgy)
+		printer_mnk.print_mnk(tplgy,args.config_json)
             elif disp_opt == 'mem':
                 sum = [0]
                 blobs = []
