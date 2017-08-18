@@ -194,8 +194,8 @@ class CsvPrinter:
         col_handlers = self.get_col_handlers_mnk(edge, tplgy)
         new_col_handlers = col_handlers
 	supported_layers=['Convolution','Convolution_ReLU']
-        #if 'Conv' in new_col_handlers['Type']:
-	if edge.src_node.type in supported_layers:
+        if 'Conv' in new_col_handlers['Type']:
+	#if edge.src_node.type in supported_layers:
 		self.calculate_mnk(config_json_param[new_col_handlers['Node'].split(" ")[0]],new_col_handlers)
         	self.write_to_file_mnk(new_col_handlers,columns)
 
