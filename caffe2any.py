@@ -66,7 +66,7 @@ def apply_transforms(prefs, tplgy):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--printer', help='output printer (csv, console, png)', default='csv')
-    parser.add_argument('-d', '--display', type=str, help='display inventory,unique,output,bfs,mem', default='inventory,unique,output,bfs,mem')
+    parser.add_argument('-d', '--display', type=str, help='display inventory,unique,output,bfs,mem', default='inventory,unique,output,bfs,mem,mnk')
     parser.add_argument('infile', help='input prototxt file')
     args = parser.parse_args()
 
@@ -104,6 +104,7 @@ def main():
         printer_inventory = csv.CsvPrinter(args.infile + '_inventory.csv')
         printer_unique = csv.CsvPrinter(args.infile + '_unique.csv')
         printer_bfs = csv.CsvPrinter(args.infile + '_bfs.csv')
+	printer_mnk = csv.CsvPrinter(args.infile + '_mnk.csv')
 
     if args.display != None:
         for disp_opt in args.display.split(','):
@@ -121,6 +122,8 @@ def main():
             elif disp_opt == 'bfs':
                 #printer.print_bfs(tplgy)
                 printer_bfs.print_bfs(tplgy)
+            elif disp_opt== 'mnk':
+		printer_mnk.print_mnk(tplgy)
             elif disp_opt == 'mem':
                 sum = [0]
                 blobs = []

@@ -156,7 +156,61 @@ class CsvPrinter:
         self.file.write(', '.join(self.cols))
         self.file.write('\n')
         tplgy.traverse(None, lambda edge: self.print_edge_cb(edge, tplgy))
-        print('cvs printer: done with %s' % self.file.name)
+	print('cvs printer: done with %s' % self.file.name)
+
+    def print_mnk(self, tplgy):
+        self.file.write('Layer_name,Filter_dim,Stride,Pad, Input_size\n')
+        columns=['Name','Dim','Stride','Pad', 'IFMz']
+	#self.file.write('\n')
+	tplgy.traverse(None, lambda edge: self.print_edge_cb_mnk(edge, tplgy,columns))
+	print('cvs printer: done with %s' % self.file.name)
+
+
+    def print_edge_cb_mnk(self, edge, tplgy,columns):
+        # If we've printed the contribution of this BLOB, then we skip it.
+        # This will naturally filter out ReLU nodes, because they share their
+        # BLOB with either Convolution or InnerProduct
+        if edge.blob in self.done_blobs:
+            #print("skipping BLOB: %s from edge %s" % (edge.blob, str(edge)))
+            return
+        # We don't want to see 'modifier' nodes (e.g. Concat) it in the CSV, since
+        # they contribute no data transfer information
+        if edge.src_node.role == 'Modifier':
+            return
+        self.done_blobs.append(edge.blob)
+
+        col_handlers = self.get_col_handlers_mnk(edge, tplgy)
+        """
+        Add your own handler
+        """
+        new_col_handlers = col_handlers
+        if 'Conv' in new_col_handlers['Type']:
+        	self.write_to_file_mnk(new_col_handlers,columns)
+
+    def write_to_file_mnk(self, col_handlers,columns):
+        for col in columns:
+		if col == 'Name':
+			self.file.write(col_handlers['Node'].split(" ")[0]+',' )
+			print(col_handlers['Node'].split(" ")[0])
+		elif col == 'Dim':
+			self.file.write(col_handlers['Type'].split(",")[1].split("=")[1].split("/")[0]+ ','  )
+		elif col == 'Stride':
+			print(col_handlers['Type'].split(",")[1].split("/")[0])
+			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[0]+ ',' )
+		elif col == 'Pad':
+			self.file.write(col_handlers['Type'].split(",")[1].split("/")[1].split(" ")[1]+ ',' )
+		else:
+
+        		self.file.write(col_handlers[col] + ',' )
+        self.file.write('\n');
+
+    def get_col_handlers_mnk(self, edge, tplgy):
+        col_handlers = {
+	    'Node': (edge.src_node.name if edge.src_node else ''),
+            'Type': (str(self.print_node(edge.src_node)) if edge.src_node else ','),
+            'IFMz': self.print_ifms(edge.src_node, tplgy),
+        }
+        return col_handlers
 
     def get_col_handlers(self, edge, tplgy):
         col_handlers = {
